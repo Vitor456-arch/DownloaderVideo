@@ -48,6 +48,10 @@ class Manager(QObject):
         self.changed.emit()
 
     def update(self, job, event):
+        # Buffered process events can arrive after taskkill has been requested.
+        # Cancellation is terminal until the user explicitly retries the task.
+        if job["state"] == "cancelled":
+            return
         kind = event.get("type")
         if kind == "progress":
             job.update({k: event.get(k) for k in ("downloaded", "total", "speed", "eta")})

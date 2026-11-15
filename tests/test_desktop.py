@@ -101,3 +101,25 @@ def test_shutdown_recovers_active_tasks(qt_app, media_server, tmp_path):
     assert all(j["state"] == "interrupted" for j in recovered)
     assert not manager.workers
     store.close()
+
+
+def test_cancelled_task_ignores_buffered_worker_events(qt_app, tmp_path):
+    store = Store(tmp_path / "db")
+    manager = Manager(store)
+    manager.closing = True  # Test lifecycle events without launching a network process.
+    manager.add(["https://example.com/media.mp4"], Options(destination=str(tmp_path / "out")))
+    job = manager.jobs[0]
+    manager.cancel(job["id"])
+    for event in [
+        {"type": "progress", "status": "downloading", "downloaded": 4096, "total": 8192},
+        {"type": "processing", "message": "FFmpeg"},
+        {"type": "result", "result": []},
+    ]:
+        manager.update(job, event)
+        assert job["state"] == "cancelled"
+    manager.closing = False
+    manager.done(job, False, "Process terminated")
+    assert job["state"] == "cancelled"
+    assert store.jobs()[0]["state"] == "cancelled"
+    manager.closing = True
+    store.close()
