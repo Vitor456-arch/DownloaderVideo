@@ -1,0 +1,70 @@
+name: Release Windows
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Instalar dependências fixadas
+        run: |
+          python -m pip install -r requirements-tested.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install --no-deps -e .
+      - name: Preparar FFmpeg verificado
+        shell: pwsh
+        run: |
+          python packaging/prepare_runtime.py build/runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $runtime = Get-Content build/runtime/runtime.json | ConvertFrom-Json
+          "DOWNLOADERVIDEO_FFMPEG_DIR=$($runtime.binary_dir)" >> $env:GITHUB_ENV
+          "DOWNLOADERVIDEO_FFMPEG_NOTICES=$($runtime.notices_dir)" >> $env:GITHUB_ENV
+          $runtime.binary_dir >> $env:GITHUB_PATH
+      - name: Testar aplicação no Windows
+        run: python -m pytest -q
+      - name: Incluir fontes e avisos de redistribuição
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force packaging/licenses/mutagen/source | Out-Null
+          python -m pip download --no-deps --no-binary=:all: mutagen==1.48.1 -d packaging/licenses/mutagen/source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git archive --format=zip --output=build/DownloaderVideo-1.0.0-source.zip HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item build/DownloaderVideo-1.0.0-source.zip packaging/licenses/DownloaderVideo-source.zip
+      - name: Gerar executável com FFmpeg
+        run: python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
+      - name: Validar downloads no executável Windows
+        run: python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
+      - name: Gerar instalador e ZIP portátil
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist/DownloaderVideo -DestinationPath dist/DownloaderVideo-1.0.0-windows-x64-portable.zip
+          Copy-Item build/DownloaderVideo-1.0.0-source.zip dist/
+          Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x64
+          path: |
+            dist/*-setup.exe
+            dist/*-portable.zip
+            dist/*-source.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14

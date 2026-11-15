@@ -1,0 +1,49 @@
+name: Testes e pacote Windows
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - run: python -m pip install -r requirements-tested.txt
+      - run: python -m pip install --no-deps -e .
+      - run: python -m pytest -q
+      - name: Empacotar Windows (FFmpeg externo)
+        if: runner.os == 'Windows'
+        run: python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
+      - name: Verificar executável Windows
+        if: runner.os == 'Windows'
+        run: python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
+      - name: Gerar instalador Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/installer.iss'
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: DownloaderVideo-windows-x64-FFmpeg-externo
+          path: |
+            dist/DownloaderVideo/
+            dist/*-setup.exe
+          retention-days: 14
