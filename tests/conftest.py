@@ -19,6 +19,9 @@ def media_server(tmp_path_factory):
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *args):
             pass
+        def send_error(self, code, message=None, explain=None):
+            print(f"Fixture HTTP error {code}: {self.path}")
+            super().send_error(code, message, explain)
         def do_GET(self):
             if self.path == "/slow.mp4":
                 time.sleep(3)

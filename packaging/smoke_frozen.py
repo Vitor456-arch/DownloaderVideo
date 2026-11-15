@@ -2,6 +2,7 @@
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,7 +14,11 @@ binary = Path(sys.argv[1]).resolve()
 
 
 def request(payload):
-    result = subprocess.run([str(binary), "--worker"], input=json.dumps(payload) + "\n", capture_output=True, text=True, timeout=90, encoding="utf-8")
+    environment = dict(os.environ)
+    if os.name == "nt":
+        # Windows releases must work without a separately installed FFmpeg.
+        environment["PATH"] = str(Path(environment.get("SystemRoot", "C:/Windows")) / "System32")
+    result = subprocess.run([str(binary), "--worker"], env=environment, input=json.dumps(payload) + "\n", capture_output=True, text=True, timeout=90, encoding="utf-8")
     assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
     event = json.loads(result.stdout.splitlines()[-1])
     assert event["type"] == "result", event

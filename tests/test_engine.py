@@ -113,14 +113,19 @@ def test_download_dash_video_and_audio_formats(media_server, tmp_path):
     base, root = media_server
     dash = root / "dash"
     dash.mkdir(exist_ok=True)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(root / "sample.mp4"), "-c:v", "libx264", "-c:a", "aac", "-f", "dash", str(dash / "manifest.mpd")], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(root / "sample.mp4"), "-c:v", "libx264", "-c:a", "aac", "-f", "dash", "manifest.mpd"], check=True, cwd=dash)
     options = Options(destination=str(tmp_path))
     info = analyze(base + "/dash/manifest.mpd", options, lambda e: None)
     video = next(f for f in info["formats"] if f.get("vcodec") not in {"none", None})
     audio = next(f for f in info["formats"] if f.get("vcodec") == "none" and f.get("acodec") not in {"none", None})
     assert video["height"] == 90
     options.format_id = video["format_id"] + "+" + audio["format_id"]
-    result = download(base + "/dash/manifest.mpd", options, lambda e: None)
+    try:
+        result = download(base + "/dash/manifest.mpd", options, lambda e: None)
+    except Exception:
+        print((dash / "manifest.mpd").read_text())
+        print("DASH fixture files:", [p.name for p in dash.iterdir()])
+        raise
     assert any(Path(p).suffix == ".mkv" for p in result)
     final = next(p for p in result if Path(p).suffix == ".mkv")
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", final], capture_output=True, text=True, check=True)

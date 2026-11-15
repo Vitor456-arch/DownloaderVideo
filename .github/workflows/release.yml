@@ -50,7 +50,12 @@ jobs:
       - name: Gerar instalador e ZIP portátil
         shell: pwsh
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/installer.iss
+          $compiler = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $compiler) {
+            $compiler = (Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          }
+          if (-not $compiler) { throw "Inno Setup não encontrado no runner." }
+          & $compiler packaging/installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Compress-Archive -Path dist/DownloaderVideo -DestinationPath dist/DownloaderVideo-1.0.0-windows-x64-portable.zip
           Copy-Item build/DownloaderVideo-1.0.0-source.zip dist/
@@ -58,6 +63,21 @@ jobs:
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)"
           } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+      - name: Testar ZIP e instalação por usuário
+        shell: pwsh
+        run: |
+          $portableDir = Join-Path $env:RUNNER_TEMP "DownloaderVideo-portable-test"
+          Expand-Archive dist/DownloaderVideo-1.0.0-windows-x64-portable.zip -DestinationPath $portableDir
+          python packaging/ci_run.py python packaging/smoke_frozen.py "$portableDir/DownloaderVideo/DownloaderVideo.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installDir = Join-Path $env:RUNNER_TEMP "DownloaderVideo-installed-test"
+          $setup = (Resolve-Path dist/DownloaderVideo-1.0.0-windows-x64-setup.exe).Path
+          $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installDir`"") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Instalador falhou: $($process.ExitCode)" }
+          python packaging/ci_run.py python packaging/smoke_frozen.py "$installDir/DownloaderVideo.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $process = Start-Process -FilePath "$installDir/unins000.exe" -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Desinstalador falhou: $($process.ExitCode)" }
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows-x64
