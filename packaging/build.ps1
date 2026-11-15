@@ -30,7 +30,11 @@ if ($FFmpegDirectory) {
 }
 & $python -m PyInstaller --clean --noconfirm packaging\DownloaderVideo.spec
 if ($LASTEXITCODE -ne 0) { throw "Falha no empacotamento." }
-& $python packaging\smoke_frozen.py dist\DownloaderVideo\DownloaderVideo.exe
+if ($FFmpegDirectory) {
+    & $python packaging\smoke_frozen.py dist\DownloaderVideo\DownloaderVideo.exe --bundled
+} else {
+    & $python packaging\smoke_frozen.py dist\DownloaderVideo\DownloaderVideo.exe
+}
 if ($LASTEXITCODE -ne 0) { throw "Falha no teste do executável." }
 if ($Installer) {
     $compiler = Get-Command ISCC.exe -ErrorAction SilentlyContinue

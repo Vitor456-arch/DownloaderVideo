@@ -48,7 +48,7 @@ jobs:
       - name: Gerar executável com FFmpeg
         run: python packaging/ci_run.py python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
       - name: Validar downloads no executável Windows
-        run: python packaging/ci_run.py python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
+        run: python packaging/ci_run.py python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe --bundled
       - name: Gerar instalador e ZIP portátil
         shell: pwsh
         run: |
@@ -70,13 +70,13 @@ jobs:
         run: |
           $portableDir = Join-Path $env:RUNNER_TEMP "DownloaderVideo-portable-test"
           Expand-Archive dist/DownloaderVideo-1.0.0-windows-x64-portable.zip -DestinationPath $portableDir
-          python packaging/ci_run.py python packaging/smoke_frozen.py "$portableDir/DownloaderVideo/DownloaderVideo.exe"
+          python packaging/ci_run.py python packaging/smoke_frozen.py "$portableDir/DownloaderVideo/DownloaderVideo.exe" --bundled
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $installDir = Join-Path $env:RUNNER_TEMP "DownloaderVideo-installed-test"
           $setup = (Resolve-Path dist/DownloaderVideo-1.0.0-windows-x64-setup.exe).Path
           $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installDir`"") -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Instalador falhou: $($process.ExitCode)" }
-          python packaging/ci_run.py python packaging/smoke_frozen.py "$installDir/DownloaderVideo.exe"
+          python packaging/ci_run.py python packaging/smoke_frozen.py "$installDir/DownloaderVideo.exe" --bundled
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $process = Start-Process -FilePath "$installDir/unins000.exe" -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Desinstalador falhou: $($process.ExitCode)" }

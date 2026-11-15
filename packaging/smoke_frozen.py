@@ -15,7 +15,7 @@ binary = Path(sys.argv[1]).resolve()
 
 def request(payload):
     environment = dict(os.environ)
-    if os.name == "nt":
+    if os.name == "nt" and "--bundled" in sys.argv[2:]:
         # Windows releases must work without a separately installed FFmpeg.
         environment["PATH"] = str(Path(environment.get("SystemRoot", "C:/Windows")) / "System32")
     result = subprocess.run([str(binary), "--worker"], env=environment, input=json.dumps(payload) + "\n", capture_output=True, text=True, timeout=90, encoding="utf-8")
