@@ -28,13 +28,13 @@ jobs:
         run: choco install ffmpeg --yes --no-progress
       - run: python -m pip install -r requirements-tested.txt
       - run: python -m pip install --no-deps -e .
-      - run: python -m pytest -q
+      - run: python packaging/ci_run.py python -m pytest -q
       - name: Empacotar Windows (FFmpeg externo)
         if: runner.os == 'Windows'
-        run: python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
+        run: python packaging/ci_run.py python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
       - name: Verificar executável Windows
         if: runner.os == 'Windows'
-        run: python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
+        run: python packaging/ci_run.py python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
       - name: Gerar instalador Windows
         if: runner.os == 'Windows'
         shell: pwsh

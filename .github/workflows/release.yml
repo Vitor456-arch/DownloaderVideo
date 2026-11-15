@@ -33,7 +33,7 @@ jobs:
           "DOWNLOADERVIDEO_FFMPEG_NOTICES=$($runtime.notices_dir)" >> $env:GITHUB_ENV
           $runtime.binary_dir >> $env:GITHUB_PATH
       - name: Testar aplicação no Windows
-        run: python -m pytest -q
+        run: python packaging/ci_run.py python -m pytest -q
       - name: Incluir fontes e avisos de redistribuição
         shell: pwsh
         run: |
@@ -44,9 +44,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item build/DownloaderVideo-1.0.0-source.zip packaging/licenses/DownloaderVideo-source.zip
       - name: Gerar executável com FFmpeg
-        run: python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
+        run: python packaging/ci_run.py python -m PyInstaller --noconfirm packaging/DownloaderVideo.spec
       - name: Validar downloads no executável Windows
-        run: python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
+        run: python packaging/ci_run.py python packaging/smoke_frozen.py dist/DownloaderVideo/DownloaderVideo.exe
       - name: Gerar instalador e ZIP portátil
         shell: pwsh
         run: |
