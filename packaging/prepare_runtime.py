@@ -8,8 +8,8 @@ import urllib.request
 import zipfile
 
 TAG = "autobuild-2026-11-15-12-40"
-ASSET = "ffmpeg-n8.1.3-35-gf1acb0a266-win64-lgpl-8.1.zip"
-SHA256 = "272140baa96cbb9553eb57c03590e0b8d2c93ce352aa7f876c34fbc657536836"
+ASSET = "ffmpeg-n8.1.3-35-gf1acb0a266-win64-gpl-8.1.zip"
+SHA256 = "ce121fcc8fe8097d6ab65c97ce34dc38b9e17006c31af26088ac6c91634dff28"
 URL = f"https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/{TAG}/{ASSET}"
 
 
@@ -51,7 +51,7 @@ def main():
         "https://github.com/FFmpeg/FFmpeg/archive/f1acb0a266.tar.gz\n\n"
         f"Build scripts, dependency source URLs and license configuration:\nhttps://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/{TAG}\n"
         f"https://github.com/FFmpeg-Builds/FFmpeg-Builds/archive/refs/tags/{TAG}.tar.gz\n\n"
-        "This is the LGPL build, not the GPL/nonfree build. FFmpeg and FFprobe are separate executables. "
+        "This is the GPL build, without nonfree components. FFmpeg and FFprobe are separate executables. "
         "The original notices and documentation are included unchanged.\n", encoding="utf-8")
     config = {"binary_dir": str(ffmpeg.parent), "notices_dir": str(notices), "url": URL, "sha256": digest}
     (root / "runtime.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
